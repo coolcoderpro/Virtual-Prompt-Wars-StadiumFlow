@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// Clients get read-only access. All writes go through server (Admin SDK) routes.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /venues/{venueId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /pois/{poiId} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      match /sections/{sectionId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+  }
+}

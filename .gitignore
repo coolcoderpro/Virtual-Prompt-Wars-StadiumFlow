@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+dist
+.env
+.env.local
+service-account.json
+.DS_Store
+*.log
+.vscode
+.idea
