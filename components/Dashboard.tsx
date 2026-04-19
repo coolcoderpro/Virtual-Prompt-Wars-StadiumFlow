@@ -1,13 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePois, useSections, useVenue } from "@/lib/firestoreHooks";
 import { resolveSeatLocation } from "@/lib/seatLayout";
 import { loadSeat, saveSeat, type SeatProfile } from "@/lib/seatStorage";
-import ChatPanel from "./ChatPanel";
+import { track } from "@/lib/analytics";
+import { ensurePerformance } from "@/lib/performance";
+import AuthBadge from "./AuthBadge";
 import MatchTimer from "./MatchTimer";
 import PoiList from "./PoiList";
-import ProactiveAlerts from "./ProactiveAlerts";
+
+// ChatPanel is a floating overlay — defer its bundle so the dashboard
+// becomes interactive before the chat code loads.
+const ChatPanel = dynamic(() => import("./ChatPanel"), { ssr: false });
+// Proactive alerts are paused while we tune LLM spend — re-enable the import
+// and the <ProactiveAlerts /> block below to turn them back on.
+// import ProactiveAlerts from "./ProactiveAlerts";
 import SeatSetup from "./SeatSetup";
 import SuggestionBar from "./SuggestionBar";
 import VenueMap from "./VenueMap";
@@ -37,6 +46,7 @@ export default function Dashboard({ venueId }: { venueId: string }) {
     const existing = loadSeat();
     setSeat(existing);
     setSeatLoaded(true);
+    ensurePerformance();
   }, []);
 
   // First visit (no seat stored yet + sections loaded): auto-open the modal.
@@ -82,6 +92,7 @@ export default function Dashboard({ venueId }: { venueId: string }) {
             </p>
           </div>
           <MatchTimer />
+          <AuthBadge />
           <button
             onClick={() => setSetupOpen(true)}
             className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -128,7 +139,10 @@ export default function Dashboard({ venueId }: { venueId: string }) {
             {FILTER_TYPES.map((t) => (
               <button
                 key={t.value}
-                onClick={() => setFilter(t.value)}
+                onClick={() => {
+                  setFilter(t.value);
+                  track("filter_change", { filter: t.value });
+                }}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                   filter === t.value
                     ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
@@ -154,16 +168,21 @@ export default function Dashboard({ venueId }: { venueId: string }) {
           saveSeat(profile);
           setSeat(profile);
           setSetupOpen(false);
+          track("seat_saved", {
+            sectionId: profile.sectionId,
+            partySize: profile.partySize,
+            accessibility: !!profile.hasAccessibilityNeeds,
+          });
         }}
       />
 
-      <ProactiveAlerts
+      {/* <ProactiveAlerts
         venueId={venueId}
         sectionId={selectedSection}
         seat={seat}
         pois={pois}
         onHighlight={setHighlightedPoiIds}
-      />
+      /> */}
       <ChatPanel
         venueId={venueId}
         sectionId={selectedSection}

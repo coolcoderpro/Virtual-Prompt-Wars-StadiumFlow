@@ -1,0 +1,11 @@
+.gcloudignore
+.git
+.gitignore
+node_modules/
+.next/
+out/
+dist/
+.env.local
+service-account.json
+# Allow .env for build-time variables
+!.env

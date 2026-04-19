@@ -1,19 +1,24 @@
 rules_version = '2';
 
-// Clients get read-only access. All writes go through server (Admin SDK) routes.
+// Reads require an authenticated session (anonymous Firebase Auth is fine).
+// All writes go through server (Admin SDK) routes and bypass these rules.
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     match /venues/{venueId} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow write: if false;
 
       match /pois/{poiId} {
-        allow read: if true;
+        allow read: if isSignedIn();
         allow write: if false;
       }
 
       match /sections/{sectionId} {
-        allow read: if true;
+        allow read: if isSignedIn();
         allow write: if false;
       }
     }

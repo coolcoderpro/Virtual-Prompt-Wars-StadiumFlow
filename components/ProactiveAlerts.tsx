@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
+import { tracedFetch } from "@/lib/performance";
 import { getMatchState, type Phase } from "@/lib/matchPhase";
 import type { SeatProfile } from "@/lib/seatStorage";
 import type { Poi } from "@/lib/types";
@@ -71,8 +73,13 @@ export default function ProactiveAlerts({
     if (!prompt) return;
 
     firingRef.current = true;
+    track("proactive_alert", {
+      kind: trigger.kind,
+      phase: trigger.kind === "phase" ? trigger.phase : undefined,
+      poiId: trigger.kind === "packed-spike" ? trigger.poiId : undefined,
+    });
     try {
-      const res = await fetch("/api/chat", {
+      const res = await tracedFetch("chat_proactive", "/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -107,7 +114,10 @@ export default function ProactiveAlerts({
 
       const id = nextIdRef.current++;
       setAlerts((prev) => [...prev, { id, text, pois: matched }]);
-      if (matched.length > 0) onHighlight?.(matched);
+      if (matched.length > 0) {
+        onHighlight?.(matched);
+        track("poi_highlight", { count: matched.length, source: "proactive" });
+      }
 
       setTimeout(() => {
         setAlerts((prev) => prev.filter((a) => a.id !== id));
@@ -127,7 +137,9 @@ export default function ProactiveAlerts({
         return;
       }
       if (phase !== lastPhaseRef.current) {
+        const previous = lastPhaseRef.current;
         lastPhaseRef.current = phase;
+        track("phase_transition", { from: previous, to: phase });
         if (firedPhasesRef.current.has(phase)) return;
         firedPhasesRef.current.add(phase);
         fire({ kind: "phase", phase });

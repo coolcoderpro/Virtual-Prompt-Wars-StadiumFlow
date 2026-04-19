@@ -49,7 +49,13 @@ npm install
 
 # 2. Configure env
 cp .env.local.example .env.local
-# then fill in NEXT_PUBLIC_MAPS_KEY, NEXT_PUBLIC_FIREBASE_*, and ADMIN_PASSCODE
+# Required: NEXT_PUBLIC_MAPS_KEY, NEXT_PUBLIC_FIREBASE_*, ADMIN_PASSCODE
+# AI provider (pick one or both — see AI_PROVIDER below):
+#   GEMINI_API_KEY=...   # Google AI Studio key — preferred
+#   GROQ_API_KEY=...     # Groq fallback (Llama 3.3 70B)
+#   AI_PROVIDER=gemini   # gemini | groq | (omit for auto: gemini if key set, else groq)
+# Optional but recommended for full Google-services experience:
+#   NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-XXXXXX  # enables Firebase Analytics
 
 # 3. Seed the venue
 npm run seed

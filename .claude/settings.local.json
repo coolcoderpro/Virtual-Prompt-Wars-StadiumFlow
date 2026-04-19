@@ -8,7 +8,16 @@
       "Bash(npx tsc *)",
       "Bash(npm test *)",
       "Bash(npm run *)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(firebase --version)",
+      "Bash(firebase projects:list)",
+      "Bash(firebase deploy *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/)",
+      "Bash(curl -s -X POST http://localhost:3001/api/chat -H \"Content-Type: application/json\" -d '{\"venueId\":\"wembley\",\"messages\":[{\"role\":\"user\",\"content\":\"Quickest restroom right now? One sentence.\"}]}' -D /tmp/headers.txt --max-time 30)",
+      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models?key=AIzaSyDw3FzHXtKFMYNDSOVRCcQDm5CIieBK_3w\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/chat -H \"Content-Type: application/json\" -d '{\"venueId\":\"wembley\",\"messages\":[{\"role\":\"user\",\"content\":\"Quickest restroom right now? One sentence.\"}]}' --max-time 30)",
+      "Bash(taskkill //F //FI \"WINDOWTITLE eq npm run dev*\")",
+      "Bash(ps -W)"
     ]
   }
 }

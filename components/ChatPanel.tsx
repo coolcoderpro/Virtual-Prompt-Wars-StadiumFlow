@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
+import { tracedFetch } from "@/lib/performance";
 import type { SeatProfile } from "@/lib/seatStorage";
 import type { Poi } from "@/lib/types";
 
@@ -89,8 +91,15 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
       messages: payloadMessages,
     };
 
+    const startedAt = performance.now();
+    track("chat_send", {
+      length: text.trim().length,
+      hasSeat: !!seat,
+      hasSection: !!sectionId,
+    });
+
     try {
-      const res = await fetch("/api/chat", {
+      const res = await tracedFetch("chat_request", "/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -122,10 +131,20 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
         copy[copy.length - 1] = { role: "assistant", content: acc, pois: matched };
         return copy;
       });
-      if (matched.length > 0) onHighlight?.(matched);
+      if (matched.length > 0) {
+        onHighlight?.(matched);
+        track("poi_highlight", { count: matched.length, source: "chat" });
+      }
+      track("chat_response", {
+        latencyMs: Math.round(performance.now() - startedAt),
+        chars: acc.length,
+        poiCount: matched.length,
+      });
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
       setMessages((prev) => prev.slice(0, -1));
+      track("chat_error", { message });
     } finally {
       setStreaming(false);
     }
@@ -153,7 +172,7 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
         <div>
           <p className="text-sm font-semibold">StadiumFlow Assistant</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Live venue data • powered by Gemini
+            Live venue data • powered by Google AI
           </p>
         </div>
         <button
@@ -192,7 +211,10 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
           {QUICK_PROMPTS.map((q) => (
             <button
               key={q}
-              onClick={() => send(q)}
+              onClick={() => {
+                track("quick_prompt_click", { prompt: q });
+                send(q);
+              }}
               disabled={streaming}
               className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >

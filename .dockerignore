@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.env.local
+.firebaserc
+# .env is allowed for build-time public vars
+firebase.json
+firestore.indexes.json
+firestore.rules
+service-account.json
+README.md
+architecture.svg
+map.png
+tests
+scripts
