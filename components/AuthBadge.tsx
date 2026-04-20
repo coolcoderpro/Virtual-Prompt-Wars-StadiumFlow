@@ -59,6 +59,7 @@ export default function AuthBadge() {
     return (
       <div className="flex flex-col items-end">
         <button
+          type="button"
           onClick={handleSignIn}
           disabled={busy}
           className="inline-flex h-8 items-center gap-2 rounded-full border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -84,6 +85,7 @@ export default function AuthBadge() {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setMenuOpen((o) => !o)}
         className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white dark:bg-white dark:text-slate-900"
         aria-haspopup="menu"
@@ -104,6 +106,7 @@ export default function AuthBadge() {
             <p className="truncate">{user?.email ?? ""}</p>
           </div>
           <button
+            type="button"
             role="menuitem"
             onClick={handleSignOut}
             disabled={busy}

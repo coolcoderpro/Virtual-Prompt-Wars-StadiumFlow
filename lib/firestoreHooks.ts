@@ -1,14 +1,31 @@
+/**
+ * Typed React hooks over Firestore `onSnapshot`, scoped to the current
+ * authenticated user.
+ *
+ * `useAuthedDoc` and `useAuthedCollection` are private generics that
+ * handle the two common shapes (single document, collection). The three
+ * exported hooks (`useVenue`, `usePois`, `useSections`) are thin wrappers
+ * with the domain types plugged in — adding a fourth collection is a
+ * one-line hook.
+ */
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, doc, onSnapshot, type Unsubscribe } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  onSnapshot,
+  type DocumentReference,
+  type Query,
+  type Unsubscribe,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { getFirebase } from "./firebase";
 import type { Poi, Section, Venue } from "./types";
 
 /**
  * Subscribe to a Firestore source only after Firebase Auth has resolved a
- * user. The new Firestore rules require `request.auth != null`, so calling
+ * user. The Firestore rules require `request.auth != null`, so calling
  * onSnapshot before anonymous sign-in finishes throws "missing or
  * insufficient permissions" until auth catches up.
  */
@@ -36,74 +53,78 @@ function useAuthedSnapshot(subscribe: () => Unsubscribe, deps: unknown[]) {
   }, deps);
 }
 
-export function useVenue(venueId: string) {
-  const [venue, setVenue] = useState<Venue | null>(null);
+type WithId<T> = T & { id: string };
+
+function useAuthedDoc<T>(
+  makeRef: () => DocumentReference,
+  deps: unknown[]
+): { data: WithId<T> | null; error: Error | null } {
+  const [data, setData] = useState<WithId<T> | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
-  useAuthedSnapshot(() => {
-    const { db } = getFirebase();
-    const ref = doc(db, "venues", venueId);
-    return onSnapshot(
-      ref,
-      (snap) => {
-        setError(null);
-        if (!snap.exists()) {
-          setVenue(null);
-          return;
-        }
-        setVenue({ id: snap.id, ...(snap.data() as Omit<Venue, "id">) });
-      },
-      setError
-    );
-  }, [venueId]);
+  useAuthedSnapshot(
+    () =>
+      onSnapshot(
+        makeRef(),
+        (snap) => {
+          setError(null);
+          if (!snap.exists()) {
+            setData(null);
+            return;
+          }
+          setData({ id: snap.id, ...(snap.data() as T) });
+        },
+        setError
+      ),
+    deps
+  );
 
-  return { venue, error };
+  return { data, error };
+}
+
+function useAuthedCollection<T>(
+  makeRef: () => Query,
+  deps: unknown[]
+): { data: WithId<T>[]; error: Error | null } {
+  const [data, setData] = useState<WithId<T>[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+
+  useAuthedSnapshot(
+    () =>
+      onSnapshot(
+        makeRef(),
+        (snap) => {
+          setError(null);
+          setData(snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) })));
+        },
+        setError
+      ),
+    deps
+  );
+
+  return { data, error };
+}
+
+export function useVenue(venueId: string) {
+  const { data, error } = useAuthedDoc<Omit<Venue, "id">>(
+    () => doc(getFirebase().db, "venues", venueId),
+    [venueId]
+  );
+  return { venue: data as Venue | null, error };
 }
 
 export function usePois(venueId: string) {
-  const [pois, setPois] = useState<Poi[]>([]);
-  const [error, setError] = useState<Error | null>(null);
-
-  useAuthedSnapshot(() => {
-    const { db } = getFirebase();
-    const ref = collection(db, "venues", venueId, "pois");
-    return onSnapshot(
-      ref,
-      (snap) => {
-        setError(null);
-        setPois(
-          snap.docs.map(
-            (d) => ({ id: d.id, ...(d.data() as Omit<Poi, "id">) })
-          )
-        );
-      },
-      setError
-    );
-  }, [venueId]);
-
-  return { pois, error };
+  const { data, error } = useAuthedCollection<Omit<Poi, "id">>(
+    () => collection(getFirebase().db, "venues", venueId, "pois"),
+    [venueId]
+  );
+  return { pois: data as Poi[], error };
 }
 
 export function useSections(venueId: string) {
-  const [sections, setSections] = useState<Section[]>([]);
-  const [error, setError] = useState<Error | null>(null);
-
-  useAuthedSnapshot(() => {
-    const { db } = getFirebase();
-    const ref = collection(db, "venues", venueId, "sections");
-    return onSnapshot(
-      ref,
-      (snap) => {
-        setError(null);
-        setSections(
-          snap.docs.map(
-            (d) => ({ id: d.id, ...(d.data() as Omit<Section, "id">) })
-          )
-        );
-      },
-      setError
-    );
-  }, [venueId]);
-
-  return { sections, error };
+  const { data, error } = useAuthedCollection<Omit<Section, "id">>(
+    () => collection(getFirebase().db, "venues", venueId, "sections"),
+    [venueId]
+  );
+  return { sections: data as Section[], error };
 }

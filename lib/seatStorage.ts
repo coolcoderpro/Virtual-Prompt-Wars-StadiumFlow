@@ -1,3 +1,11 @@
+/**
+ * Browser-only persistence for the fan's seat profile.
+ *
+ * The profile lives in localStorage so the dashboard remembers it across
+ * refreshes without a backend round-trip. Reads are defensive — any
+ * malformed or partial payload falls back to `null` so a bad legacy entry
+ * can't crash the boot path.
+ */
 "use client";
 
 export interface SeatProfile {

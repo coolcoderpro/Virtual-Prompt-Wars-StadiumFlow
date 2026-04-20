@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
-import { tracedFetch } from "@/lib/performance";
+import { matchPoiNames, postChat, readTextStream } from "@/lib/chatClient";
 import type { SeatProfile } from "@/lib/seatStorage";
 import type { Poi } from "@/lib/types";
 
@@ -28,14 +28,6 @@ const QUICK_PROMPTS: string[] = [
   "What's the fastest exit when the match ends?",
   "Any accessible restroom near me?",
 ];
-
-/** Scan assistant text for POI names and return the matched ids. */
-function extractPois(text: string, pois: Poi[]): string[] {
-  const lower = text.toLowerCase();
-  return pois
-    .filter((p) => lower.includes(p.name.toLowerCase()))
-    .map((p) => p.id);
-}
 
 export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight }: Props) {
   const [open, setOpen] = useState(false);
@@ -71,25 +63,11 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
     setInput("");
     setStreaming(true);
 
-    // Payload is the history we want Groq to see: every real turn so far
+    // Payload is the history we want the model to see: every real turn so far
     // plus the new user question. Drop empty turns (the streaming placeholder).
     const payloadMessages = [...messages, userMsg]
       .filter((m) => m.content.trim().length > 0)
       .map(({ role, content }) => ({ role, content }));
-
-    const payload = {
-      venueId,
-      sectionId: sectionId || undefined,
-      seat: seat
-        ? {
-            row: seat.row,
-            seat: seat.seat,
-            partySize: seat.partySize,
-            hasAccessibilityNeeds: seat.hasAccessibilityNeeds,
-          }
-        : undefined,
-      messages: payloadMessages,
-    };
 
     const startedAt = performance.now();
     track("chat_send", {
@@ -99,10 +77,18 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
     });
 
     try {
-      const res = await tracedFetch("chat_request", "/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const res = await postChat("chat_request", {
+        venueId,
+        sectionId: sectionId || undefined,
+        seat: seat
+          ? {
+              row: seat.row,
+              seat: seat.seat,
+              partySize: seat.partySize,
+              hasAccessibilityNeeds: seat.hasAccessibilityNeeds,
+            }
+          : undefined,
+        messages: payloadMessages,
       });
 
       if (!res.ok || !res.body) {
@@ -110,22 +96,15 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
         throw new Error(errBody.error ?? "Chat request failed");
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let acc = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        acc += decoder.decode(value, { stream: true });
+      const acc = await readTextStream(res, (accum) => {
         setMessages((prev) => {
           const copy = prev.slice();
-          copy[copy.length - 1] = { role: "assistant", content: acc };
+          copy[copy.length - 1] = { role: "assistant", content: accum };
           return copy;
         });
-      }
+      });
 
-      const matched = extractPois(acc, pois);
+      const matched = matchPoiNames(acc, pois);
       setMessages((prev) => {
         const copy = prev.slice();
         copy[copy.length - 1] = { role: "assistant", content: acc, pois: matched };
@@ -153,12 +132,13 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
   if (!open) {
     return (
       <button
+        type="button"
         onClick={() => setOpen(true)}
         className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
         aria-label="Open StadiumFlow assistant"
       >
-        <span className="relative flex h-2.5 w-2.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+        <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 motion-safe:animate-ping" />
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
         </span>
         Ask StadiumFlow
@@ -176,6 +156,7 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
           </p>
         </div>
         <button
+          type="button"
           onClick={() => setOpen(false)}
           className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
           aria-label="Close assistant"
@@ -184,7 +165,15 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
         </button>
       </header>
 
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+      <div
+        ref={scrollRef}
+        role="log"
+        aria-live="polite"
+        aria-atomic="false"
+        aria-busy={streaming}
+        aria-label="Assistant conversation"
+        className="flex-1 space-y-3 overflow-y-auto px-4 py-3"
+      >
         {messages.map((m, i) => (
           <div
             key={i}
@@ -211,6 +200,7 @@ export default function ChatPanel({ venueId, sectionId, seat, pois, onHighlight 
           {QUICK_PROMPTS.map((q) => (
             <button
               key={q}
+              type="button"
               onClick={() => {
                 track("quick_prompt_click", { prompt: q });
                 send(q);

@@ -14,8 +14,11 @@ import PoiList from "./PoiList";
 // ChatPanel is a floating overlay — defer its bundle so the dashboard
 // becomes interactive before the chat code loads.
 const ChatPanel = dynamic(() => import("./ChatPanel"), { ssr: false });
-// Proactive alerts are paused while we tune LLM spend — re-enable the import
-// and the <ProactiveAlerts /> block below to turn them back on.
+
+// ProactiveAlerts is intentionally stashed (not dead code). It fires phase +
+// crowd-spike toasts via /api/chat, which costs LLM tokens. Re-enable the
+// import and the <ProactiveAlerts /> JSX block at the bottom of this file
+// once the hackathon demo is over and spend is no longer a concern.
 // import ProactiveAlerts from "./ProactiveAlerts";
 import SeatSetup from "./SeatSetup";
 import SuggestionBar from "./SuggestionBar";
@@ -82,7 +85,7 @@ export default function Dashboard({ venueId }: { venueId: string }) {
     : "Tap to set seat";
 
   return (
-    <main className="flex min-h-screen flex-col">
+    <main id="main" className="flex min-h-screen flex-col">
       <header className="border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -94,6 +97,7 @@ export default function Dashboard({ venueId }: { venueId: string }) {
           <MatchTimer />
           <AuthBadge />
           <button
+            type="button"
             onClick={() => setSetupOpen(true)}
             className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Edit your seat"
@@ -139,6 +143,7 @@ export default function Dashboard({ venueId }: { venueId: string }) {
             {FILTER_TYPES.map((t) => (
               <button
                 key={t.value}
+                type="button"
                 onClick={() => {
                   setFilter(t.value);
                   track("filter_change", { filter: t.value });
@@ -176,7 +181,8 @@ export default function Dashboard({ venueId }: { venueId: string }) {
         }}
       />
 
-      {/* <ProactiveAlerts
+      {/* Stashed — see import comment above.
+      <ProactiveAlerts
         venueId={venueId}
         sectionId={selectedSection}
         seat={seat}

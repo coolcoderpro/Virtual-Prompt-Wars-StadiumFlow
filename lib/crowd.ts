@@ -1,3 +1,8 @@
+/**
+ * Presentation tokens for each `CrowdLevel`. Colours track tailwind.config.ts
+ * and icons are deliberately text-only so the signal is readable without
+ * colour (accessibility).
+ */
 import type { CrowdLevel } from "./types";
 
 export const CROWD_LABELS: Record<CrowdLevel, string> = {

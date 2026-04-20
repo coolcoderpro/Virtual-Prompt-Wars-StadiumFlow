@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
-import { tracedFetch } from "@/lib/performance";
+import { matchPoiNames, postChat, readTextStream } from "@/lib/chatClient";
 import { getMatchState, type Phase } from "@/lib/matchPhase";
 import type { SeatProfile } from "@/lib/seatStorage";
 import type { Poi } from "@/lib/types";
@@ -79,38 +79,25 @@ export default function ProactiveAlerts({
       poiId: trigger.kind === "packed-spike" ? trigger.poiId : undefined,
     });
     try {
-      const res = await tracedFetch("chat_proactive", "/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          venueId,
-          sectionId: sectionId || undefined,
-          seat: seat
-            ? {
-                row: seat.row,
-                seat: seat.seat,
-                partySize: seat.partySize,
-                hasAccessibilityNeeds: seat.hasAccessibilityNeeds,
-              }
-            : undefined,
-          messages: [{ role: "user", content: prompt }],
-        }),
+      const res = await postChat("chat_proactive", {
+        venueId,
+        sectionId: sectionId || undefined,
+        seat: seat
+          ? {
+              row: seat.row,
+              seat: seat.seat,
+              partySize: seat.partySize,
+              hasAccessibilityNeeds: seat.hasAccessibilityNeeds,
+            }
+          : undefined,
+        messages: [{ role: "user", content: prompt }],
       });
       if (!res.ok || !res.body) return;
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let acc = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        acc += decoder.decode(value, { stream: true });
-      }
-      const text = acc.trim();
+      const text = (await readTextStream(res)).trim();
       if (!text) return;
 
-      const lower = text.toLowerCase();
-      const matched = pois.filter((p) => lower.includes(p.name.toLowerCase())).map((p) => p.id);
+      const matched = matchPoiNames(text, pois);
 
       const id = nextIdRef.current++;
       setAlerts((prev) => [...prev, { id, text, pois: matched }]);
@@ -183,6 +170,7 @@ export default function ProactiveAlerts({
           <div className="flex items-start justify-between gap-2">
             <span className="whitespace-pre-wrap">{a.text}</span>
             <button
+              type="button"
               onClick={() => setAlerts((prev) => prev.filter((x) => x.id !== a.id))}
               className="shrink-0 rounded p-0.5 text-amber-700 hover:bg-amber-200 dark:text-amber-200 dark:hover:bg-amber-800"
               aria-label="Dismiss alert"

@@ -1,3 +1,14 @@
+/**
+ * Suggestion scoring for StadiumFlow POIs.
+ *
+ * `distanceMeters` — straight-line distance over the geoid (Haversine).
+ * `suggest` — ranks POIs of a given type by a weighted score combining
+ * walking distance, predicted wait time, and reported crowd level. Lower
+ * is better.
+ *
+ * Kept dependency-free so the same helpers run on the server (system-prompt
+ * construction) and the client (SuggestionBar) without a runtime divide.
+ */
 import type { LatLng, Poi, PoiType } from "./types";
 
 const EARTH_RADIUS_M = 6_371_000;
