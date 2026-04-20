@@ -17,7 +17,11 @@
       "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models?key=AIzaSyDw3FzHXtKFMYNDSOVRCcQDm5CIieBK_3w\")",
       "Bash(curl -s -X POST http://localhost:3001/api/chat -H \"Content-Type: application/json\" -d '{\"venueId\":\"wembley\",\"messages\":[{\"role\":\"user\",\"content\":\"Quickest restroom right now? One sentence.\"}]}' --max-time 30)",
       "Bash(taskkill //F //FI \"WINDOWTITLE eq npm run dev*\")",
-      "Bash(ps -W)"
+      "Bash(ps -W)",
+      "Bash(git rm *)",
+      "Bash(npm audit *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }
